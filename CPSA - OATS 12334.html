@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<!-- saved from url=(0061)file:///C:/Users/rilar/Downloads/CPSA%20-%20OATS%20%2011.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <script src="chrome-extension://infdcenbdoibcacogknkjleclhnjdmfh/content/captcha/recaptcha/hunter.js"></script>
+    <script src="chrome-extension://infdcenbdoibcacogknkjleclhnjdmfh/content/captcha/recaptcha/interceptor.js"></script>
+    <script src="chrome-extension://infdcenbdoibcacogknkjleclhnjdmfh/content/communication_helpers.js"></script>
+    <script src="chrome-extension://infdcenbdoibcacogknkjleclhnjdmfh/content/core_helpers.js"></script>
+    <script>(function(){function hookGeo() {
+  //<![CDATA[
+  const WAIT_TIME = 100;
+  const hookedObj = {
+    getCurrentPosition: navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),
+    watchPosition: navigator.geolocation.watchPosition.bind(navigator.geolocation),
+    fakeGeo: true,
+    genLat: 38.883333,
+    genLon: -77.000
+  };
+
+  function waitGetCurrentPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        hookedObj.tmp_successCallback({
+          coords: {
+            latitude: hookedObj.genLat,
+            longitude: hookedObj.genLon,
+            accuracy: 10,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: new Date().getTime(),
+        });
+      } else {
+        hookedObj.getCurrentPosition(hookedObj.tmp_successCallback, hookedObj.tmp_errorCallback, hookedObj.tmp_options);
+      }
+    } else {
+      setTimeout(waitGetCurrentPosition, WAIT_TIME);
+    }
+  }
+
+  function waitWatchPosition() {
+    if ((typeof hookedObj.fakeGeo !== 'undefined')) {
+      if (hookedObj.fakeGeo === true) {
+        navigator.geolocation.getCurrentPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+        return Math.floor(Math.random() * 10000); // random id
+      } else {
+        hookedObj.watchPosition(hookedObj.tmp2_successCallback, hookedObj.tmp2_errorCallback, hookedObj.tmp2_options);
+      }
+    } else {
+      setTimeout(waitWatchPosition, WAIT_TIME);
+    }
+  }
+
+  Object.getPrototypeOf(navigator.geolocation).getCurrentPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp_successCallback = successCallback;
+    hookedObj.tmp_errorCallback = errorCallback;
+    hookedObj.tmp_options = options;
+    waitGetCurrentPosition();
+  };
+  Object.getPrototypeOf(navigator.geolocation).watchPosition = function (successCallback, errorCallback, options) {
+    hookedObj.tmp2_successCallback = successCallback;
+    hookedObj.tmp2_errorCallback = errorCallback;
+    hookedObj.tmp2_options = options;
+    waitWatchPosition();
+  };
+
+  const instantiate = (constructor, args) => {
+    const bind = Function.bind;
+    const unbind = bind.bind(bind);
+    return new (unbind(constructor, null).apply(null, args));
+  }
+
+  Blob = function (_Blob) {
+    function secureBlob(...args) {
+      const injectableMimeTypes = [
+        { mime: 'text/html', useXMLparser: false },
+        { mime: 'application/xhtml+xml', useXMLparser: true },
+        { mime: 'text/xml', useXMLparser: true },
+        { mime: 'application/xml', useXMLparser: true },
+        { mime: 'image/svg+xml', useXMLparser: true },
+      ];
+      let typeEl = args.find(arg => (typeof arg === 'object') && (typeof arg.type === 'string') && (arg.type));
+
+      if (typeof typeEl !== 'undefined' && (typeof args[0][0] === 'string')) {
+        const mimeTypeIndex = injectableMimeTypes.findIndex(mimeType => mimeType.mime.toLowerCase() === typeEl.type.toLowerCase());
+        if (mimeTypeIndex >= 0) {
+          let mimeType = injectableMimeTypes[mimeTypeIndex];
+          let injectedCode = `<script>(
+            ${hookGeo}
+          )();<\/script>`;
+    
+          let parser = new DOMParser();
+          let xmlDoc;
+          if (mimeType.useXMLparser === true) {
+            xmlDoc = parser.parseFromString(args[0].join(''), mimeType.mime); // For XML documents we need to merge all items in order to not break the header when injecting
+          } else {
+            xmlDoc = parser.parseFromString(args[0][0], mimeType.mime);
+          }
+
+          if (xmlDoc.getElementsByTagName("parsererror").length === 0) { // if no errors were found while parsing...
+            xmlDoc.documentElement.insertAdjacentHTML('afterbegin', injectedCode);
+    
+            if (mimeType.useXMLparser === true) {
+              args[0] = [new XMLSerializer().serializeToString(xmlDoc)];
+            } else {
+              args[0][0] = xmlDoc.documentElement.outerHTML;
+            }
+          }
+        }
+      }
+
+      return instantiate(_Blob, args); // arguments?
+    }
+
+    // Copy props and methods
+    let propNames = Object.getOwnPropertyNames(_Blob);
+    for (let i = 0; i < propNames.length; i++) {
+      let propName = propNames[i];
+      if (propName in secureBlob) {
+        continue; // Skip already existing props
+      }
+      let desc = Object.getOwnPropertyDescriptor(_Blob, propName);
+      Object.defineProperty(secureBlob, propName, desc);
+    }
+
+    secureBlob.prototype = _Blob.prototype;
+    return secureBlob;
+  }(Blob);
+
+  // https://developer.chrome.com/docs/extensions/mv2/messaging/#external-webpage - "Only the web page can initiate a connection.", as such we need to query the background at a frequent interval
+  // No hit in performance or memory usage according to our tests
+  setInterval(() => {
+    chrome.runtime.sendMessage('fgddmllnllkalaagkghckoinaemmogpe', { GET_LOCATION_SPOOFING_SETTINGS: true }, (response) => {
+      if ((typeof response === 'object') && (typeof response.coords === 'object')) {
+        hookedObj.genLat = response.coords.lat;
+        hookedObj.genLon = response.coords.lon;
+        hookedObj.fakeGeo = response.fakeIt;
+      }
+    });
+  }, 500);
+  //]]>
+}hookGeo();})()</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://oats.cpsa.ca/oats/images/favIco_32x32.png" sizes="32x32">
+    <link rel="icon" href="https://oats.cpsa.ca/oats/images/favIco_192x192.png" sizes="192x192">
+    <link rel="apple-touch-icon-precomposed" href="https://oats.cpsa.ca/oats/images/favIco_180x180.png">
+    <meta name="msapplication-TileImage" content="~/images/favIco_270x270.png">
+    <title>CPSA - OATS</title>
+    <link href="./CPSA - OATS 12334_files/site.min.css" rel="stylesheet">
+    <link href="./CPSA - OATS 12334_files/css" rel="stylesheet">
+    <link href="./CPSA - OATS 12334_files/font-awesome.min.css" rel="stylesheet">
+    <link href="./CPSA - OATS 12334_files/icon" rel="stylesheet">
+    <link href="./CPSA - OATS 12334_files/skeleton-loader.css" rel="stylesheet">
+    <!--<base href="/oats/">--><!--<base href=".">--><base href=".">
+  </head>
+  <body data-gr-ext-installed="" data-new-gr-c-s-check-loaded="14.1122.0"><captcha-widgets></captcha-widgets>
+    <header>
+      <div class="mainPanel">
+        <div id="unsupportedBrowserWarning" class="alert alert-warning" style="text-align:center;display:none;">
+          <div class="supportMessage"> <b>Sorry, this site does not support
+              Internet Explorer.</b><span> Please upgrade to <a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a>, <a href="https://www.google.com/intl/en_ca/chrome/" target="_blank">Google Chrome</a>, or <a href="https://www.mozilla.org/en-CA/firefox/new/" target="_blank">Firefox</a> and paste <a href="https://oats.cpsa.ca/IndependentTracking?id=CPSA.019805">this
+                link</a> into the address bar to continue.</span> </div>
+        </div>
+        <br>
+        <div class="container">
+          <div class="row">
+            <div id="supporting-documents" class="col-12 white-panel"><!-- dynamic filter menu -->
+              <div class="documentFilter">
+                <ul>
+                  <li><a class="filter-option allFilter selected" data-document-identifier="ALL">All</a></li>
+                  <li></li>
+                  <li></li>
+                  <li></li>
+                  <li></li>
+                  <li></li>
+                  <li><a class="filter-option uploadDeclinedFilter" data-document-identifier="DECLINED">Declined</a></li>
+                </ul>
+              </div>
+              <!-- /dynamic filter menu-->
+              <div class="row no-gutters documentManagerSection">
+                <div class="col-5 fileList">
+                  <div class="fileItem" data-document-identifier="PROFESSIONAL-ACTIVITY-GAP" data-document-status="PENDING-UPLOAD" data-document-attention-required="False" style="">
+                    <div class="requiredDocName"> <label>Gap in Professional
+                        Activity</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pUpload"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem" data-document-identifier="MEDICAL-CREDENTIALS-VERIFICATION" data-document-status="PENDING-RECEIPT" data-document-attention-required="False" style="">
+                    <div class="requiredDocName"> <label>Verification of
+                        Medical Credentials Completed</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pending"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem ripple" data-document-identifier="PHOTO-SIG-RECEIVED" data-document-status="PENDING-UPLOAD" data-document-attention-required="True" style="">
+                    <div class="requiredDocName"> <label>Completed
+                        Photo/Signature Form</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pUpload"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem" data-document-identifier="CPC" data-document-status="PENDING-RECEIPT" data-document-attention-required="False" style="">
+                    <div class="requiredDocName"> <label>Certificate of
+                        Professional Conduct</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pending"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem ripple" data-document-identifier="REFERENCE" data-document-status="PENDING-RECEIPT" data-document-attention-required="True" style="">
+                    <div class="requiredDocName"> <label>Reference</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pending"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem" data-document-identifier="REFERENCE-2" data-document-status="APPROVED" data-document-attention-required="True" style="">
+                    <div class="requiredDocName"> <label>Reference</label> </div>
+                    <div class="fileUpdate"> <span class="tag-approved"></span>
+                    </div>
+                  </div>
+                  <div class="fileItem ripple" data-document-identifier="REFERENCE-3" data-document-status="PENDING-RECEIPT" data-document-attention-required="True" style="">
+                    <div class="requiredDocName"> <label>Reference</label> </div>
+                    <div class="fileUpdate"> <span class="tag-pending"></span>
+                    </div>
+                  </div>
+                  
+                  
+                  
+                </div>
+                <div class="col-7 fileInfo">
+                  <div class="documentDetails" data-document-identifier="PROFESSIONAL-ACTIVITY-GAP" style="display: none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-12">
+                          <h4>Gap in Professional Activity</h4>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-12 uploadedFile"> <a style="cursor:pointer;" class="uploadBtn btn-block" data-target="#uploadPROFESSIONAL-ACTIVITY-GAPModal" data-toggle="modal">Upload document</a> </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-2"> <span style="padding-left:15px;">Details:</span>
+                        </div>
+                        <div class="col-10"> <span style="font-weight:normal;">December
+                            2014 through Jul 2018</span> </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <form class="formUpload" enctype="multipart/form-data" action="https://oats.cpsa.ca/oats/independenttracking/upload-supporting-document/CPSA.019805?type=PROFESSIONAL-ACTIVITY-GAP" method="post"> <input name="__TrackingNumber" value="CfDJ8Ejlgc8Vv6tOpXDy3zD5z0F5co73_NhuoSmkEg1xRclNG_7ukuL37w4cQ4xaiTKzQAMdltZ5nEp8nh4-W5Z_WZQ459R60C86i_ZMxAwiPmBhpfHlmHc3JVREmiAYgFRLUw" type="hidden">
+                    <div id="uploadPROFESSIONAL-ACTIVITY-GAPModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="uploadPROFESSIONAL-ACTIVITY-GAPModal">
+                      <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h2 class="modal-title">Upload Supporting document</h2>
+                            <a class="close" data-dismiss="modal" aria-label="Close">
+                              <span aria-hidden="true">x</span> </a> </div>
+                          <div class="modal-body">
+                            <div class="container">
+                              <div class="row">
+                                <div class="col-12 alert alert-info">
+                                  <p class="alert-heading">Please note that we
+                                    will only accept PDF format.</p>
+                                </div>
+                              </div>
+                              <div class="row fileUploadWrapper">
+                                <div class="col-12">
+                                  <div class="fileUploadSection">
+                                    <div class="mainUploadSection submitUpload">
+                                      <input accept=".pdf" name="file" id="file-PROFESSIONAL-ACTIVITY-GAP" class="fileInput typePDF" type="file"> <label for="file-PROFESSIONAL-ACTIVITY-GAP"><span>Choose
+                                          a .pdf file</span></label> </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="modal-footer"> <button type="button" class="btn btn-secondary cancelUpload" data-dismiss="modal">Cancel</button> <button type="submit" class="btn submit submitUpload">Upload</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <input name="__RequestVerificationToken" value="CfDJ8Ejlgc8Vv6tOpXDy3zD5z0E7Ma4oFOWqYzHzPZSBpcxSRaZqSScag3Ps8LA02YQhEIMlHSSZMP8Crc-pBm3IoBK1W4apvbHj1JL1eqkayVpquu2MYVlthXi_0EEfEIolI-V0N4kVsq658bTXa6WtCkPeE-kZbU58y9qbMHTJYxZpmwOslDJpo_wakoa9kFHnpg" type="hidden"></form>
+                  <div class="documentDetails" data-document-identifier="MEDICAL-CREDENTIALS-VERIFICATION" style="display: none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Verification of Medical Credentials Completed</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="color:red">Not Received</span>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-2"> <span style="padding-left:15px;">Status:</span>
+                        </div>
+                        <div class="col-8">
+                          <p>N/A</p>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-2"> <span style="padding-left:15px;">Type:</span>
+                        </div>
+                        <div class="col-8">
+                          <p>NA</p>
+                        </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <div class="comment" style="padding-left:25px;">
+                        <div class="row">
+                          <div class="col-8"><span class="name"></span></div>
+                          <div class="col-4 text-right"><span>29-Aug-2023</span></div>
+                        </div>
+                        <p>PGT (Aug 18-Aug 21/UK)</p>
+                        <hr> </div>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="PHOTO-SIG-RECEIVED" style="display: none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-12">
+                          <h4>Completed Photo/Signature Form</h4>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-12 uploadedFile"> <a style="cursor:pointer;" class="uploadBtn btn-block" data-target="#uploadPHOTO-SIG-RECEIVEDModal" data-toggle="modal">Upload document</a> </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <form class="formUpload" enctype="multipart/form-data" action="https://oats.cpsa.ca/oats/independenttracking/upload-supporting-document/CPSA.019805?type=PHOTO-SIG-RECEIVED" method="post"> <input name="__TrackingNumber" value="CfDJ8Ejlgc8Vv6tOpXDy3zD5z0EQgC4z7peepkwe18B7YAF8A7p-dZOfv3JqGn3pvc8kICyxCbQSymf9veq3Y4rM8HH8-Rwc4PoSKuurlrDPHmZeyNQ4fi8Ub7UzhI-emJkCVg" type="hidden">
+                    <div id="uploadPHOTO-SIG-RECEIVEDModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="uploadPHOTO-SIG-RECEIVEDModal">
+                      <div class="modal-dialog modal-lg" role="document">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h2 class="modal-title">Upload Supporting document</h2>
+                            <a class="close" data-dismiss="modal" aria-label="Close">
+                              <span aria-hidden="true">x</span> </a> </div>
+                          <div class="modal-body">
+                            <div class="container">
+                              <div class="row">
+                                <div class="col-12 alert alert-info">
+                                  <p class="alert-heading">Please note that we
+                                    will only accept PDF format.</p>
+                                </div>
+                              </div>
+                              <div class="row fileUploadWrapper">
+                                <div class="col-12">
+                                  <div class="fileUploadSection">
+                                    <div class="mainUploadSection submitUpload">
+                                      <input accept=".pdf" name="file" id="file-PHOTO-SIG-RECEIVED" class="fileInput typePDF" type="file"> <label for="file-PHOTO-SIG-RECEIVED"><span>Choose
+                                          a .pdf file</span></label> </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div class="modal-footer"> <button type="button" class="btn btn-secondary cancelUpload" data-dismiss="modal">Cancel</button> <button type="submit" class="btn submit submitUpload">Upload</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <input name="__RequestVerificationToken" value="CfDJ8Ejlgc8Vv6tOpXDy3zD5z0E7Ma4oFOWqYzHzPZSBpcxSRaZqSScag3Ps8LA02YQhEIMlHSSZMP8Crc-pBm3IoBK1W4apvbHj1JL1eqkayVpquu2MYVlthXi_0EEfEIolI-V0N4kVsq658bTXa6WtCkPeE-kZbU58y9qbMHTJYxZpmwOslDJpo_wakoa9kFHnpg" type="hidden"></form>
+                  <div class="documentDetails" data-document-identifier="CPC" style="display:none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Certificate of Professional Conduct</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="color:red">Not Received</span>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-2"> <span style="padding-left:15px;">Details:</span>
+                        </div>
+                        <div class="col-10"> <span style="font-weight:normal;">United
+                            Kingdom</span> </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="REFERENCE" style="display:none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Reference</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="color:red">Not Received</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <div class="comment" style="padding-left:25px;">
+                        <div class="row">
+                          <div class="col-8"><span class="name"></span></div>
+                          <div class="col-4 text-right"><span>29-Aug-2023</span></div>
+                        </div>
+                        <p>Chief of Staff/Service</p>
+                        <hr> </div>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="REFERENCE-2" style="display: none;">
+                    <div class="currentFile">
+                      
+                      
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      
+                      
+                      <div class="comment" style="padding-left:25px;">
+                        <div class="row">
+                          <div class="col-8"><span class="name"></span></div>
+                          
+                        </div>
+                        <p>Colleague</p>
+                        <hr> </div>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="REFERENCE-3" style="display:none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Reference</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="color:red">Not Received</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <div class="comment" style="padding-left:25px;">
+                        <div class="row">
+                          <div class="col-8"><span class="name"></span></div>
+                          <div class="col-4 text-right"><span>29-Aug-2023</span></div>
+                        </div>
+                        <p>Colleague</p>
+                        <hr> </div>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="MINC-CONSENT-RECEIVED" style="display: none;">
+                    
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="CFPC-LETTER" style="display:none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Official Statement Letter from CFPC</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="">28-Aug-2023</span> </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-12 text-right"> <span>Upload Approved
+                            On: 29-Aug-2023</span> </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section-->
+                  <div class="documentDetails" data-document-identifier="CRIMINAL-RECORD-CHECK" style="display:none;">
+                    <div class="currentFile">
+                      <div class="row">
+                        <div class="col-8">
+                          <h4>Criminal Record Check</h4>
+                        </div>
+                        <div class="col-4 text-right"> <text><span>Received On:
+                            </span> </text><span style="">31-Aug-2023</span> </div>
+                      </div>
+                      <div class="row">
+                        <div class="col-2"> <span style="font-size:1.0rem !important;padding-left:15px;">Jurisdiction:</span>
+                        </div>
+                        <div class="col-10"> <span style="font-size:1.0rem !important;font-weight:normal;padding-left:15px;">United
+                            Kingdom</span> </div>
+                      </div>
+                    </div>
+                    <!--Comment section-->
+                    <div class="commentSection">
+                      <h4>Comments</h4>
+                      <hr>
+                      <p class="noComments">There are no comments for this
+                        document.</p>
+                    </div>
+                  </div>
+                  <!--/Comment section--> </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <div class="mainWrapper"> </div>
+    <footer>
+      <div class="container">
+        <div class="row"><br>
+        </div>
+      </div>
+    </footer>
+    <div class="loading">
+      <svg id="Logo" xmlns="http://www.w3.org/2000/svg" width="252.36" height="400" viewBox="0 0 252.36 400">
+        <g>
+          <path d="M108.46,109.94a44.44,44.44,0,0,1,0-88.88"></path>
+          <path d="M143.9,110.06a44.44,44.44,0,0,1,0,88.88"></path>
+          <path d="M108.46,288.94a44.44,44.44,0,0,1,0-88.88"></path>
+          <path d="M143.9,290.06a44.44,44.44,0,0,1,0,88.88"></path> </g>
+        <g class="l1">
+          <path d="M108.46,109.94a44.44,44.44,0,0,1,0-88.88"></path>
+          <path d="M143.9,110.06a44.44,44.44,0,0,1,0,88.88"></path>
+          <path d="M108.46,288.94a44.44,44.44,0,0,1,0-88.88"></path>
+          <path d="M143.9,290.06a44.44,44.44,0,0,1,0,88.88"></path> </g> </svg>
+    </div>
+    <script src="./CPSA - OATS 12334_files/jquery-3.1.1.min.js.download">
+		</script>
+    <script>(window.jQuery||document.write("\u003Cscript src=\u0027/oats/js/jquery.min.js?v=DiVvGEjlpLUm6LIj7GFQTJvnVhXF9Ndfyz7iILXDdmU\u0027\u003E\u003C/script\u003E"));</script>
+    <script src="./CPSA - OATS 12334_files/tether.js.download"></script>
+    <script src="./CPSA - OATS 12334_files/bootstrap.min.js.download"></script>
+    <script src="./CPSA - OATS 12334_files/site.min.js.download"></script>
+    <script src="./CPSA - OATS 12334_files/blazor.server.js.download"></script>
+    <script src="./CPSA - OATS 12334_files/jquery-ui.min.js.download"></script>
+    <script>
+		if (Object.hasOwnProperty.call(window, "ActiveXObject") && !window.ActiveXObject) {
+			document.getElementById("unsupportedBrowserWarning").style.display = "block";
+		}
+	</script>
+    <script>
+		$(document).on("mouseenter", ".tool-tip", function () {
+			var target = $(this);
+			var tip = target.attr('title');
+			var tooltip = $('<div id="tooltip"></div>');
+			if (!tip || tip == '') {
+				return false;
+			}
+
+			target.removeAttr('title');
+			tooltip.css('opacity', 0)
+				.html(tip)
+				.appendTo('body');
+
+			var init_tooltip = function () {
+				if ($(window).width() < tooltip.outerWidth() * 1.5)
+					tooltip.css('max-width', $(window).width() / 2);
+				else
+					tooltip.css('max-width', 340);
+
+				var pos_left = target.offset().left + (target.outerWidth() / 2) - (tooltip.outerWidth() / 2),
+					pos_top = target.offset().top - tooltip.outerHeight() - 20;
+
+				if (pos_left < 0) {
+					pos_left = target.offset().left + target.outerWidth() / 2 - 20;
+					tooltip.addClass('left');
+				}
+				else
+					tooltip.removeClass('left');
+
+				if (pos_left + tooltip.outerWidth() > $(window).width()) {
+					pos_left = target.offset().left - tooltip.outerWidth() + target.outerWidth() / 2 + 20;
+					tooltip.addClass('right');
+				}
+				else
+					tooltip.removeClass('right');
+
+				if (pos_top < 0) {
+					var pos_top = target.offset().top + target.outerHeight();
+					tooltip.addClass('top');
+				}
+				else
+					tooltip.removeClass('top');
+
+				tooltip.css({ left: pos_left, top: pos_top })
+					.animate({ top: '+=10', opacity: 1 }, 50);
+			};
+
+			init_tooltip();
+			$(window).resize(init_tooltip);
+
+			var remove_tooltip = function () {
+				tooltip.animate({ top: '-=10', opacity: 0 }, 50, function () {
+					$(this).remove();
+				});
+
+				target.attr('title', tip);
+			};
+
+			target.bind('mouseleave', remove_tooltip);
+			tooltip.bind('click', remove_tooltip);
+		});
+	</script>
+    <script src="./CPSA - OATS 12334_files/signalr.js.download"></script>
+    <script id="new-notification-template" type="text/html">
+        <div class="row no-gutters">
+            <div class="col-2"><div class="icoAlert {icon-class}"></div></div>
+            <div class="col-8">
+                <span class="date">{date}</span>
+                <p>{message}</p>
+                <p><a class="view-more-details-button" data-id="{id}">More details</a></p>
+            </div>
+            <div class="col-2">
+                <a class="dismiss-notification-button close" data-id="{id}">x</a>
+            </div>
+        </div>
+    </script>
+    <script>
+        var independentTrackingHubConnection = new signalR.HubConnectionBuilder().withUrl("independentTrackingHub").build();
+
+        independentTrackingHubConnection.start().then(function() {
+			// nom nom nom
+        });
+
+        independentTrackingHubConnection.on("decrement-notifications-badge", function () {
+			decrementNotificationsBadge();
+		});
+
+        fileUpload();
+		resetformElementPdf();
+		inputFileName();
+
+		function alertScroll() {
+			$('a[href*=\\#]').on('click', function (e) {
+				e.preventDefault();
+				$('html, body').animate({ scrollTop: $($(this).attr('href')).offset().top }, 500, 'linear');
+			});
+		}
+		//achorNav
+        alertScroll();
+
+        if (window.location.hash) {
+            $('.scrollDown').click();
+        }
+
+        function errorOnUpload() {
+        }
+        errorOnUpload();
+
+    //left menu
+		$('.fileItem:first-child').addClass('selected');
+        $('.fileItem').on("click", function () {
+            //
+			$('.fileItem').removeClass('selected');
+			$(this).addClass('selected');
+			$(".documentDetails").hide();
+			var documentIdentifier = $(this).attr("data-document-identifier");
+            $(".documentDetails[data-document-identifier=" + "'" + documentIdentifier + "']").show();
+
+            var hasRipple = $(this).hasClass("ripple");
+            if (hasRipple) {
+                decrementBadge("attention-required-count");
+                $(this).removeClass("ripple");
+                independentTrackingHubConnection.invoke("SetAttentionIsNotRequired", "CPSA.019805", documentIdentifier).catch(function (err) {
+		    	    return console.error(err.toString());
+		        });
+            }
+        });
+
+        //filter menu
+        function setFilterOption(value) {
+            sessionStorage.setItem("filter-option", value)
+        }
+
+        function getFilterOption() {
+            return sessionStorage.getItem("filter-option");
+        }
+
+		function filterDocumentsByStatus(status) {
+			$(".fileItem").hide().removeClass("selected");
+			$(".fileItem[data-document-status=" + "'" + status + "']").show();
+
+			var first = $(".fileItem[data-document-status=" + "'" + status + "']")[0];
+			$(first).addClass("selected");
+
+			var documentIdentifier = $(first).attr("data-document-identifier");
+
+			$(".documentDetails").hide();
+			$(".documentDetails[data-document-identifier=" + "'" + documentIdentifier + "']").show();
+        }
+
+        function filterDocumentsByAttentionRequired(isAttentionRequired) {
+			$(".fileItem").hide().removeClass("selected");
+			$(".fileItem[data-document-attention-required=" + "'" + isAttentionRequired + "']").show();
+
+			var first = $(".fileItem[data-document-attention-required=" + "'" + isAttentionRequired + "']")[0];
+			$(first).addClass("selected");
+
+			var documentIdentifier = $(first).attr("data-document-identifier");
+
+			$(".documentDetails").hide();
+			$(".documentDetails[data-document-identifier=" + "'" + documentIdentifier + "']").show();
+        }
+
+        function setMenuItemIsActive(value) {
+            $(".documentFilter a").removeClass("selected");
+            $(this).toggleClass("selected");
+
+            $('.filter-option[data-document-identifier="' + value +'"]').toggleClass("selected");
+        }
+
+        function filterDocuments(value) {
+            if (value === "ALL") {
+                $(".fileItem").show();
+            }
+            else if (value === "REQUIRES-ATTENTION") {
+                filterDocumentsByAttentionRequired("True");
+            }
+            else {
+                filterDocumentsByStatus(value);
+            }
+        }
+
+        $(document).on("click", ".filter-option", function () {
+            var documentIdentifier = $(this).attr("data-document-identifier");
+
+            if (documentIdentifier) {
+                setFilterOption(documentIdentifier);
+
+                setMenuItemIsActive(documentIdentifier);
+                filterDocuments(documentIdentifier);
+            }
+        });
+
+        //notifications bell
+		function setNotificationCount(count) {
+			var notificationBadge = document.getElementById("notification-badge-count");
+
+			if (!notificationBadge) {
+				return;
+			}
+
+			if (count && count > 0) {
+				if (count < 100) {
+					notificationBadge.innerText = count;
+				}
+				else {
+					notificationBadge.innerText = "...";
+				}
+				notificationBadge.classList.add("active");
+			}
+			else {
+				notificationBadge.innerText = "";
+				notificationBadge.classList.remove("active")
+			 }
+		}
+
+		function decrementNotificationsBadge() {
+			var notificationBadge = document.getElementById("notification-badge-count");
+
+			if (!notificationBadge) {
+				return;
+			}
+
+			var count = notificationBadge.innerText;
+
+			if (count && count > 0) {
+				count = count - 1;
+				setNotificationCount(count);
+			}
+		}
+
+		function resetNotificationPanel() {
+			 var notificationList = document.getElementById("newNotificationList");
+					notificationList.innerHTML = "";
+					$("#new-notifications-body , #no-new-notifications-body").hide();
+		}
+
+		function notificationPanel() {
+			$('.notificationBtn, .notificationPanelClose').on('click', function (e) {
+				event.preventDefault(e);
+				event.stopPropagation(e);
+				$('.notifcationPanel').toggleClass('active');
+
+				var isActive = $('.notifcationPanel').hasClass("active");
+
+				if (isActive) {
+					$(".notificationLoading").show();
+					notificationsConnection.invoke("GetNewNotifications", "CPSA.019805").catch(function (err) {
+						return console.error(err.toString());
+					});
+				}
+				else {
+					resetNotificationPanel();
+				}
+		   });
+
+		   $(document).on('click', function (e) {
+			   var container = $('.notifcationPanel');
+			   if (!container.is(e.target) && container.has(e.target).length === 0) {
+				   var isActive = $(container).hasClass("active");
+
+				   if (isActive) {
+					   container.removeClass('active');
+					   resetNotificationPanel();
+				   }
+				   event.stopPropagation();
+			   }
+		   });
+		}
+
+		notificationPanel();
+
+		$(document).ready(function () {
+            $("#notification-center").show();
+
+            var filterOption = getFilterOption();
+
+            if (filterOption) {
+                if (filterOption === "REQUIRES-ATTENTION") {
+                    if (5 === 0) {
+                        filterOption = "ALL";
+                    }
+                }
+
+                setMenuItemIsActive(filterOption);
+                filterDocuments(filterOption);
+            }
+        });
+
+        // notification signalr
+        var notificationsConnection = new signalR.HubConnectionBuilder().withUrl("notificationHub").build();
+
+        notificationsConnection.on("redirect-me", function (url) {
+			window.location = url;
+        });
+
+        notificationsConnection.on("slide-page-down", function (type) {
+            var id = "#";
+
+            if (type === "MEMBER-SUPPORTING-DOCUMENTS-ATTENTION-REQUIRED") {
+                id = id + "supporting-documents";
+            }
+            else if (type === "MEMBER-ADDITIONAL-INFORMATION-UPDATED") {
+                id = id + "additional-information";
+            }
+
+            $('html, body').animate({ scrollTop: $(id).offset().top }, 500, 'linear');
+
+            var container = $('.notifcationPanel');
+            container.removeClass('active');
+			resetNotificationPanel();
+		});
+
+		notificationsConnection.on("display-notifications-badge", function (count) {
+			setNotificationCount(count);
+		});
+
+		notificationsConnection.on("new-notifications", function (json) {
+			$(".notificationLoading").hide();
+
+			var notifications = JSON.parse(json);
+			if (notifications != null && notifications.length > 0) {
+
+				var list = document.getElementById("newNotificationList");
+
+				for (var i = 0; i < notifications.length; i++) {
+					var notification = notifications[i];
+
+					var id = notification.Id;
+					var message = notification.Message;
+                    var date = notification.Date;
+                    var type = notification.Type;
+
+					var html = (document.getElementById("new-notification-template").innerHTML)
+                        .replace("{id}", id)
+                        .replace("{id}", id)
+						.replace("{date}", date)
+						.replace("{message}", message);
+
+                    if (type === "MEMBER-SUPPORTING-DOCUMENTS-ATTENTION-REQUIRED") {
+                        html = html.replace("{icon-class}", "docFile");
+                    }
+                    else if (type === "MEMBER-ADDITIONAL-INFORMATION-UPDATED") {
+                        html = html.replace("{icon-class}", "additional-information-icon");
+                    }
+
+					var item = document.createElement("li");
+					item.innerHTML = html;
+					item.setAttribute("data-correlation", id);
+
+					list.appendChild(item);
+				}
+
+				$("#new-notifications-body").slideDown();
+			}
+			else {
+				$("#no-new-notifications-body").show();
+			}
+		});
+
+		notificationsConnection.start().then(function() {
+			notificationsConnection.invoke("DisplayNewNotificationsBadge", "CPSA.019805").catch(function (err) {
+				return console.error(err.toString());
+			});
+		});
+
+		  $(document).on("click", ".dismiss-notification-button", function (event) {
+				var id = $(this).attr("data-id");
+
+			  var notification = document.querySelectorAll("[data-correlation='" + id + "'");
+			  $(notification).slideUp();
+
+			  decrementNotificationsBadge();
+
+			  notificationsConnection.invoke("DismissNotification", id, "CPSA.019805", false).catch(function (err) {
+				  return console.error(err.toString());
+			  });
+		  });
+
+		$(document).on("click", ".dismiss-all-link", function (event) {
+			var notifications = document.getElementById("new-notifications-body");
+			$(notifications).slideUp();
+			setNotificationCount(0);
+
+			$("#no-new-notifications-body").show();
+
+			 notificationsConnection.invoke("DismissAllNotifications", "CPSA.019805").catch(function (err) {
+				return console.error(err.toString());
+			 });
+        });
+
+         $(document).on("click", ".view-more-details-button", function (event) {
+            var id = $(this).attr("data-id");
+
+             var notification = document.querySelectorAll("[data-correlation='" + id + "'");
+             $(notification).slideUp();
+             decrementNotificationsBadge();
+
+            notificationsConnection.invoke("DismissNotification", id, "CPSA.019805", true).catch(function (err) {
+                return console.error(err.toString());
+            });
+        });
+
+        function decrementBadge(badgeId) {
+			var badge = document.getElementById(badgeId);
+
+			if (!badge) {
+				return;
+            }
+
+			var count = badge.innerText;
+
+			if (count && count > 0) {
+				count = count - 1;
+				setBadgeCount(badgeId, count);
+			}
+        }
+
+        function setBadgeCount(badgeId, count) {
+			var badge = document.getElementById(badgeId);
+
+			if (!badge) {
+				return;
+			}
+
+			if (count && count > 0) {
+				if (count < 100) {
+					badge.innerText = count;
+				}
+				else {
+					badge.innerText = "...";
+				}
+				badge.classList.add("active");
+			}
+			else {
+				badge.innerText = "";
+				badge.classList.remove("active")
+			 }
+		}
+    </script>
+    <webchatgpt-custom-element-56ea9b39-4a8a-4c46-9770-4bbf5f4bcac6 id="webchatgpt-snackbar" style="z-index: 2147483647;"><template shadowrootmode="open">
+        <style id="webchatgpt-snackbar-emotion-style"></style>
+        <div id="webchatgpt-snackbar-container" style="color: rgb(255, 255, 255);"></div>
+      </template></webchatgpt-custom-element-56ea9b39-4a8a-4c46-9770-4bbf5f4bcac6><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open">
+        <style>
+  div.grammarly-desktop-integration {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select:none;
+    user-select:none;
+  }
+
+  div.grammarly-desktop-integration:before {
+    content: attr(data-content);
+  }
+</style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div>
+      </template></grammarly-desktop-integration>
+  
+
+</body></html>
